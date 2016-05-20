@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -37,14 +38,45 @@ void MainWindow::removeConnection()
 
 void MainWindow::recvMsg()
 {
-    QTcpSocket * s = (QTcpSocket*)sender();
-    QByteArray arr(s->readAll());
+    QTcpSocket * tcpSocket = (QTcpSocket*)sender();
+    QDataStream dataStream(tcpSocket);
+    quint16 nextBlockSize = 0;
+
+    while(true){
+         //nextBlcokSize 가 0 이면 아직 데이터를 못받은것
+        if(nextBlockSize == 0){
+            //수신된 데이터가 nextBlockSize 바이트보다 큰지 확인
+            if(tcpSocket->bytesAvailable() < sizeof(quint16))
+                ;
+            else
+                dataStream>>nextBlockSize;
+            continue;
+        }
+        //nextBlcokSize가 도착하면 사이즈만큼 데이터가 도착했는지 확인
+       else if(tcpSocket->bytesAvailable() < nextBlockSize)
+            continue;
+
+        //데이터를 표시
+       else if(tcpSocket->bytesAvailable() >= nextBlockSize){
+            QString strBuf;
+            dataStream>>strBuf;
+            ui->textEdit->append("메세지 : "+strBuf);
+            nextBlockSize = 0;
+
+            break;
+        }
+    }
+
+
+    //ui->textEdit->append(str);
+
     foreach(QTcpSocket* sock,list)
     {
-        sock->write(arr);
-        sock->flush();
+       // sock->write(arr);
+       // sock->flush();
     }
-    QString str(arr);
-    ui->textEdit->append(QString("메시지:"+str));
+    //qDebug() << "ok";
+
+
 
 }

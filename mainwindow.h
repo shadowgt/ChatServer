@@ -4,6 +4,17 @@
 #include <QMainWindow>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QString>
+
+
+typedef struct stMsg
+{
+    QByteArray msg;
+    QByteArray userId;
+}STMSG;
+
+
+
 
 namespace Ui {
 class MainWindow;
@@ -29,6 +40,8 @@ private:
 
     QTcpServer server;
     QList<QTcpSocket*> list;
+
+    int m_nextBlockSize;
 };
 
 #endif // MAINWINDOW_H
