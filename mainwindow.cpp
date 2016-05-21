@@ -37,36 +37,54 @@ void MainWindow::removeConnection()
 }
 
 void MainWindow::recvMsg()
-{
+{   
     QTcpSocket * tcpSocket = (QTcpSocket*)sender();
     QDataStream dataStream(tcpSocket);
     quint16 nextBlockSize = 0;
+    int msgType = 0;
 
-    while(true){
-         //nextBlcokSize 가 0 이면 아직 데이터를 못받은것
-        if(nextBlockSize == 0){
+    while(true)
+    {
+        if(nextBlockSize == 0)
+        {
             //수신된 데이터가 nextBlockSize 바이트보다 큰지 확인
             if(tcpSocket->bytesAvailable() < sizeof(quint16))
                 ;
             else
+            {
+                dataStream>>msgType;
                 dataStream>>nextBlockSize;
+
+                qDebug() << " received file size of block :" << nextBlockSize;
+            }
             continue;
         }
         //nextBlcokSize가 도착하면 사이즈만큼 데이터가 도착했는지 확인
-       else if(tcpSocket->bytesAvailable() < nextBlockSize)
+        else if(tcpSocket->bytesAvailable() < nextBlockSize)
             continue;
 
         //데이터를 표시
-       else if(tcpSocket->bytesAvailable() >= nextBlockSize){
-            QString strBuf;
-            dataStream>>strBuf;
-            ui->textEdit->append("메세지 : "+strBuf);
-            nextBlockSize = 0;
+        else if(tcpSocket->bytesAvailable() >= nextBlockSize)
+        {
+            if(msgType == DEF_TYPE_MESSAGE)
+            {
+                QByteArray arr;
+                dataStream>>arr;
+                QString str;
+                str.append(arr);
+                dataStream>>arr;
+                str.append(arr);
+                ui->textEdit->append(str);
+                nextBlockSize = 0;
 
+            }
+            else if(msgType == DEF_TYPE_FILE)
+            {
+                qDebug() << "File received";
+            }
             break;
         }
     }
-
 
     //ui->textEdit->append(str);
 

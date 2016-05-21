@@ -6,6 +6,8 @@
 #include <QTcpSocket>
 #include <QString>
 
+#define DEF_TYPE_MESSAGE 1
+#define DEF_TYPE_FILE 2
 
 typedef struct stMsg
 {
