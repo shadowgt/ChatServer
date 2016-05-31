@@ -21,80 +21,80 @@ void MainWindow::addConnection()
 {
     QTcpSocket * s;
     s = server.nextPendingConnection();
-    list.append(s);
+    stUserInfo user;
+    user.pTcpSocket = s;
+    list.append(user);
     connect(s,SIGNAL(disconnected()),this,SLOT(removeConnection()));
     connect(s,SIGNAL(readyRead()),this,
             SLOT(recvMsg()));
     ui->textEdit->append(QString("새로운 사용자입장"));
 }
 
-void MainWindow::removeConnection()
-{
-    QTcpSocket * s =(QTcpSocket*)sender();
-    list.removeAll(s);
-    s->deleteLater();
-    ui->textEdit->append(QString("사용자 1명 나감"));
-}
+
 
 void MainWindow::recvMsg()
 {   
     QTcpSocket * tcpSocket = (QTcpSocket*)sender();
     QDataStream dataStream(tcpSocket);
-    quint16 nextBlockSize = 0;
-    int msgType = 0;
 
-    while(true)
+    bool bLoginChk = false;
+    QString str;
+    foreach(stUserInfo user,list)
     {
-        if(nextBlockSize == 0)
-        {
-            //수신된 데이터가 nextBlockSize 바이트보다 큰지 확인
-            if(tcpSocket->bytesAvailable() < sizeof(quint16))
-                ;
-            else
-            {
-                dataStream>>msgType;
-                dataStream>>nextBlockSize;
+       if(user.pTcpSocket == tcpSocket)
+       {
+            // without connect message
+           str = processRecvMsg(tcpSocket);
+           ui->textEdit->append(str);
 
-                qDebug() << " received file size of block :" << nextBlockSize;
-            }
-            continue;
-        }
-        //nextBlcokSize가 도착하면 사이즈만큼 데이터가 도착했는지 확인
-        else if(tcpSocket->bytesAvailable() < nextBlockSize)
-            continue;
-
-        //데이터를 표시
-        else if(tcpSocket->bytesAvailable() >= nextBlockSize)
-        {
-            if(msgType == DEF_TYPE_MESSAGE)
-            {
-                QByteArray arr;
-                dataStream>>arr;
-                QString str;
-                str.append(arr);
-                dataStream>>arr;
-                str.append(arr);
-                ui->textEdit->append(str);
-                nextBlockSize = 0;
-
-            }
-            else if(msgType == DEF_TYPE_FILE)
-            {
-                qDebug() << "File received";
-            }
-            break;
-        }
+           if(str.compare("Exit")==0)
+           {
+               removeConnection(tcpSocket);
+           }
+           break;
+       }
     }
 
-    //ui->textEdit->append(str);
-
-    foreach(QTcpSocket* sock,list)
+    /*
+    QByteArray arrIDChk(tcpSocket->readAll());
+    QString strIDChk(arrIDChk.data());
+    if(strIDChk.compare("김봉상") == 0)
     {
-       // sock->write(arr);
-       // sock->flush();
+
     }
-    //qDebug() << "ok";
+
+    */
 
 
+}
 
+void MainWindow::removeConnection(QTcpSocket * i_s)
+{
+    QTcpSocket * s = nullptr;
+    bool bFunctionCall = false;
+
+    if(i_s == nullptr)
+    {
+        s =(QTcpSocket*)sender();
+    }
+    else
+    {
+        s = i_s;
+        bFunctionCall = true;
+    }
+
+    for (QList<stUserInfo>::iterator iter = list.begin() ; list.end() != iter; )
+    {
+        if(iter->pTcpSocket != s)
+        {
+            iter = list.erase(iter);
+        }
+        else
+        {
+            iter++;
+        }
+    }
+    if(bFunctionCall == false )
+    s->deleteLater();
+    ui->textEdit->append(QString("사용자 1명 나감"));
 }

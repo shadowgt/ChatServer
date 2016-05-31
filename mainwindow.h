@@ -2,27 +2,16 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QTcpServer>
-#include <QTcpSocket>
-#include <QString>
 
-#define DEF_TYPE_MESSAGE 1
-#define DEF_TYPE_FILE 2
-
-typedef struct stMsg
-{
-    QByteArray msg;
-    QByteArray userId;
-}STMSG;
-
-
+#include "define.h"
+#include "cserver.h"
 
 
 namespace Ui {
 class MainWindow;
 }
 
-class MainWindow : public QMainWindow
+class MainWindow : public QMainWindow ,CServer
 {
     Q_OBJECT
 
@@ -32,18 +21,13 @@ public:
 
 public slots:
     void addConnection();
-    void removeConnection();
     void recvMsg();
-
+    void removeConnection(QTcpSocket * i_s = nullptr);
 
 
 private:
     Ui::MainWindow *ui;
 
-    QTcpServer server;
-    QList<QTcpSocket*> list;
-
-    int m_nextBlockSize;
 };
 
 #endif // MAINWINDOW_H
