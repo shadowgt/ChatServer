@@ -61,6 +61,31 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
                 newDataSteam << strReturn.toUtf8();
 
             }
+            else if(msgType == DEF_TYPE_CHANNEL_CHANGE)
+            {
+                QByteArray arr;
+                dataStream>>arr;
+                strReturn.append("\"");
+                strReturn.append(arr); // ID
+                strReturn.append("\"");
+                dataStream>>arr;
+                strReturn.append(" joined channel ");
+                strReturn.append("\#");
+                strReturn.append(arr); // Channel
+
+                foreach(stUserInfo user,list)
+                {
+                    if(user.pTcpSocket == tcpSocket)
+                    {
+                        user.channal = arr;
+                    }
+                }
+
+                QByteArray buffer( strReturn.toUtf8());
+
+                newDataSteam<<quint16(buffer.size());
+                newDataSteam << strReturn.toUtf8();
+            }
             else if(msgType == DEF_TYPE_FILE)
             {
                 qDebug() << "File received";
@@ -83,6 +108,13 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
                 qDebug() << strID;
                 qDebug() << strPassword;
 
+                // login as guest
+                if(strPassword.compare("guest")==0)
+                {
+                    rtQuery = 1;
+                    strID.append("_guest");
+                }
+
                 // *****************************
 
                 if(rtQuery != 1)
@@ -92,6 +124,15 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
                 else
                 {
                     strReturn.append(rtQuery);
+                }
+
+                // setUserID
+                foreach(stUserInfo user,list)
+                {
+                    if(user.pTcpSocket == tcpSocket)
+                    {
+                        user.userId = strID;
+                    }
                 }
 
 
@@ -105,10 +146,28 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
     }
     newDataSteam.device()->seek(0);
 
+
+    stUserInfo sendUser;
     foreach(stUserInfo user,list)
     {
-       user.pTcpSocket->write(block);
+        if(user.pTcpSocket == tcpSocket)
+        {
+            sendUser = user;
+        }
     }
+
+    foreach(stUserInfo user,list)
+    {
+        if(user.channal.compare(sendUser.channal)==0)
+        {
+            user.pTcpSocket->write(block);
+        }
+    }
+
+
+
+
+
     return strReturn;
 }
 

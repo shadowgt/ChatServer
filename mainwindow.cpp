@@ -14,6 +14,23 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    QTcpSocket *s = (QTcpSocket*)sender();
+
+    for (QList<stUserInfo>::iterator iter = list.begin() ; list.end() != iter; )
+    {
+        QByteArray block;
+        QDataStream dataStream(&block,QIODevice::ReadWrite);
+
+        dataStream << quint16(0);
+        dataStream << quint16(DEF_TYPE_TRY_LOGIN);
+        dataStream << quint16(sizeof(quint16)); // 사이즈
+        dataStream<<quint16(0); // flag 0 = exit
+
+        qDebug() << iter->pTcpSocket->write(block);
+        iter->pTcpSocket->waitForBytesWritten(10000);
+        iter = list.erase(iter);
+    }
+
     delete ui;
 }
 
@@ -49,7 +66,7 @@ void MainWindow::recvMsg()
 
            if(str.compare("Exit")==0)
            {
-               removeConnection(tcpSocket);
+               tcpSocket->close();
            }
            break;
        }
@@ -68,33 +85,22 @@ void MainWindow::recvMsg()
 
 }
 
-void MainWindow::removeConnection(QTcpSocket * i_s)
+void MainWindow::removeConnection()
 {
-    QTcpSocket * s = nullptr;
-    bool bFunctionCall = false;
-
-    if(i_s == nullptr)
-    {
-        s =(QTcpSocket*)sender();
-    }
-    else
-    {
-        s = i_s;
-        bFunctionCall = true;
-    }
+    QTcpSocket *s = (QTcpSocket*)sender();
 
     for (QList<stUserInfo>::iterator iter = list.begin() ; list.end() != iter; )
     {
-        if(iter->pTcpSocket != s)
+        if(iter->pTcpSocket == s)
         {
             iter = list.erase(iter);
+            s->close();
         }
         else
         {
             iter++;
         }
     }
-    if(bFunctionCall == false )
-    s->deleteLater();
+    //s->deleteLater();
     ui->textEdit->append(QString("사용자 1명 나감"));
 }

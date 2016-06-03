@@ -13,12 +13,19 @@
 #define DEF_TYPE_MESSAGE quint16(1)
 #define DEF_TYPE_FILE quint16(2)
 #define DEF_TYPE_TRY_LOGIN quint16(3)
+#define DEF_TYPE_CHANNEL_CHANGE quint16(4)
 
 
 typedef struct stUserInfo
 {
     QTcpSocket* pTcpSocket;
     QString userId;
+    QString channal;
+    stUserInfo()
+    {
+        channal = "#Everyone";
+    }
+
 }ST_USER_INFO;
 
 

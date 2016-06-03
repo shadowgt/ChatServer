@@ -22,7 +22,7 @@ public:
 public slots:
     void addConnection();
     void recvMsg();
-    void removeConnection(QTcpSocket * i_s = nullptr);
+    void removeConnection();
 
 
 private:
