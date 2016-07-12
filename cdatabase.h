@@ -14,7 +14,7 @@ protected:
     void deleteDatabase();
     int sendQuery(QString i_query);
 
-private:
+public:
     QSqlDatabase m_db;
 };
 

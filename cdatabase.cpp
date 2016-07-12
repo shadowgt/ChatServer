@@ -12,8 +12,6 @@ CDatabase::~CDatabase()
 
 int CDatabase::sendQuery(QString i_query)
 {
-
-
     m_db = QSqlDatabase::addDatabase("QSQLITE");
     m_db.setDatabaseName("Bong.db");
 
@@ -55,7 +53,6 @@ int CDatabase::sendQuery(QString i_query)
             qDebug() <<"active" << query.isActive();
             qDebug() <<"row size : " << query.size();
             qDebug() << "query ok";
-
 
             while(query.next())
             {

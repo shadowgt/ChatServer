@@ -23,9 +23,10 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
     {
         if(nextBlockSize == 0)
         {
+            qDebug() << "nextBlockSize == 0";
             //수신된 데이터가 nextBlockSize 바이트보다 큰지 확인
             if(tcpSocket->bytesAvailable() < sizeof(quint16))
-                ;
+                qDebug() << "tcpSocket->bytesAvailable() < sizeof(quint16)";
             else
             {
                 dataStream>>msgType;
@@ -65,26 +66,38 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
             }
             else if(msgType == DEF_TYPE_CHANNEL_CHANGE)
             {
+                QString strName;
+                QString strChannal;
+                QString strBeforeChannal;
+
                 QByteArray arr;
                 dataStream>>arr;
                 strReturn.append("\"");
                 strReturn.append(arr); // ID
+
                 strReturn.append("\"");
                 dataStream>>arr;
                 strReturn.append(" joined channel ");
                 strReturn.append("\#");
                 strReturn.append(arr); // Channel
+                strChannal.append(arr);
 
                 foreach(stUserInfo user,list)
                 {
                     if(user.pTcpSocket == tcpSocket)
                     {
-                        user.channal = arr;
+                        strBeforeChannal = user.channal;
+                        user.channal = arr.data();
+                        strName = user.name;
                     }
                 }
 
-                QByteArray buffer( strReturn.toUtf8());
+                eraseChannalMember(strName,strBeforeChannal);
 
+                // 새 정보 등록 (채널)
+                m_mapChannalMember.insert(strChannal,strName);
+
+                QByteArray buffer( strReturn.toUtf8());
                 newDataSteam<<quint16(buffer.size());
                 newDataSteam << strReturn.toUtf8();
             }
@@ -94,7 +107,7 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
             }
             else if(msgType == DEF_TYPE_TRY_LOGIN)
             {
-                QString strID, strPassword;
+                QString strID, strPassword ,strName;
                 QByteArray arr;
                 dataStream>>arr; // ID;
                 strID.append(arr);
@@ -125,6 +138,22 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
                 }
                 else
                 {
+                    m_db = QSqlDatabase::addDatabase("QSQLITE");
+                    m_db.setDatabaseName("Bong.db");
+
+                    if(m_db.open()) //데이터베이스 오픈
+                    {
+                        m_db.exec();
+                        query = "select name from userInfo_tb where email='"+strID+"' and password='"+strPassword+"' ";
+
+                        QSqlQuery sqlQuery;
+                        if(sqlQuery.exec(query))
+                        {
+                            sqlQuery.next();
+                            strName = sqlQuery.value(0).toString();
+                        }
+                        m_db.close();
+                    }
                     strReturn.append(rtQuery);
                 }
 
@@ -134,9 +163,12 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
                     if(user.pTcpSocket == tcpSocket)
                     {
                         user.userId = strID;
+                        user.name = strName;
+
+                        // 새 정보 등록 (채널)
+                        m_mapChannalMember.insert(user.channal,strName);
                     }
                 }
-
 
                 newDataSteam<<quint16(sizeof(quint16)); // 사이즈
                 qDebug() << strReturn.size();
@@ -198,19 +230,63 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
 
 
             }
+            else if(msgType == DEF_TYPE_REQUIRE_MEMBERS_INFO)
+            {
+                stUserInfo sendUser;
+                foreach(stUserInfo user,list)
+                {
+                    if(user.pTcpSocket == tcpSocket)
+                    {
+                        sendUser = user;
+                    }
+                }
+                QByteArray arr;
+                dataStream >> arr;
+                QString str(arr);
+                qDebug() << str;
+
+                // 블록 사이즈 구하기
+                int blockSize = 0;
+                int nCount = 0;
+                QMap<QString,QString>::const_iterator iter = m_mapChannalMember.find(sendUser.channal);
+                // 채널 Member 정보
+                while (iter != m_mapChannalMember.end() && iter.key() == sendUser.channal)
+                {
+                    blockSize = blockSize + QString(iter.value()).size();
+
+                    qDebug()<<"String size :" << QString(iter.value()).size();
+
+                    iter++;
+                    nCount++;
+                }
+
+                newDataSteam<<quint16(blockSize+sizeof(quint16));
+                newDataSteam<<quint16(nCount);
+
+                qDebug()<<"블록 사이즈" << blockSize << " + "<< sizeof(quint16);
+                qDebug()<<"이름 갯수" << nCount;
+                // 블록 데이터 스트림에 넣기
+                iter = m_mapChannalMember.find(sendUser.channal);
+                // 채널 Member 정보
+                while (iter != m_mapChannalMember.end() && iter.key() == sendUser.channal)
+                {
+                    qDebug()<<"test";
+                    newDataSteam<<QString(iter.value()).toUtf8();
+                    iter++;
+                }
+
+
+               // newDataSteam << strReturn.toUtf8();
+
+               // list.begin();
+
+            }
             nextBlockSize = 0;
             break;
         }
     }
 
-    if(msgType == DEF_TYPE_SIGN_UP)
-    {
-        foreach(stUserInfo user,list)
-        {
-            tcpSocket->write(block);
-        }
-    }
-    else
+    if(msgType == DEF_TYPE_MESSAGE || msgType == DEF_TYPE_CHANNEL_CHANGE)
     {
         stUserInfo sendUser;
         foreach(stUserInfo user,list)
@@ -229,8 +305,29 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
             }
         }
     }
+    else
+    {
+        foreach(stUserInfo user,list)
+        {
+            tcpSocket->write(block);
+        }
+    }
 
     return strReturn;
 }
 
-
+void CServer::eraseChannalMember(QString i_name, QString i_channal)
+{
+    QMap<QString,QString>::iterator iter = m_mapChannalMember.find(i_channal);
+    // 이전 정보 삭제
+    while (iter != m_mapChannalMember.end() && iter.key() == i_channal) {
+        if(QString(iter.value()).compare(i_name)==0)
+        {
+            iter = m_mapChannalMember.erase(iter);
+        }
+        else
+        {
+            iter++;
+        }
+    }
+}

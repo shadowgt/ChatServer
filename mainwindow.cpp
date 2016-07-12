@@ -14,8 +14,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
-    QTcpSocket *s = (QTcpSocket*)sender();
-
     for (QList<stUserInfo>::iterator iter = list.begin() ; list.end() != iter; )
     {
         QByteArray block;
@@ -45,6 +43,7 @@ void MainWindow::addConnection()
     connect(s,SIGNAL(readyRead()),this,
             SLOT(recvMsg()));
     ui->textEdit->append(QString("새로운 사용자입장"));
+
 }
 
 
@@ -90,6 +89,8 @@ void MainWindow::removeConnection()
     {
         if(iter->pTcpSocket == s)
         {
+            eraseChannalMember(iter->name,iter->channal);
+
             iter = list.erase(iter);
             s->close();
         }
@@ -98,6 +99,5 @@ void MainWindow::removeConnection()
             iter++;
         }
     }
-    //s->deleteLater();
     ui->textEdit->append(QString("사용자 1명 나감"));
 }
