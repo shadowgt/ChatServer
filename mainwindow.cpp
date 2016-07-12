@@ -54,7 +54,6 @@ void MainWindow::recvMsg()
     QTcpSocket * tcpSocket = (QTcpSocket*)sender();
     QDataStream dataStream(tcpSocket);
 
-    bool bLoginChk = false;
     QString str;
     foreach(stUserInfo user,list)
     {
@@ -64,7 +63,7 @@ void MainWindow::recvMsg()
            str = processRecvMsg(tcpSocket);
            ui->textEdit->append(str);
 
-           if(str.compare("Exit")==0)
+           if(str.compare("Exit")==0||str.right(7).compare("SIGN_UP")==0 )
            {
                tcpSocket->close();
            }
@@ -81,8 +80,6 @@ void MainWindow::recvMsg()
     }
 
     */
-
-
 }
 
 void MainWindow::removeConnection()

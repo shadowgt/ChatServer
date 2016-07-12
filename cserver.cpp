@@ -47,18 +47,20 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
         {
             if(msgType == DEF_TYPE_MESSAGE)
             {
+                QString strID,strMessage;
+
                 QByteArray arr;
                 dataStream>>arr;
-
+                strID = arr.data();
                 strReturn.append(arr); // ID
                 dataStream>>arr;
                 strReturn.append(" : ");
                 strReturn.append(arr); // Message
+                strMessage = arr.data();
 
-                QByteArray buffer( strReturn.toUtf8());
-
-                newDataSteam<<quint16(buffer.size());
-                newDataSteam << strReturn.toUtf8();
+                newDataSteam<<quint16(strMessage.size() + strID.size());
+                newDataSteam << strID.toUtf8();
+                newDataSteam << strMessage.toUtf8();
 
             }
             else if(msgType == DEF_TYPE_CHANNEL_CHANGE)
@@ -138,35 +140,95 @@ QString CServer::processRecvMsg(QTcpSocket * tcpSocket)
 
                 newDataSteam<<quint16(sizeof(quint16)); // 사이즈
                 qDebug() << strReturn.size();
-                newDataSteam<<quint16(rtQuery); // 플레
+                newDataSteam<<quint16(rtQuery);
+            }
+            else if(msgType == DEF_TYPE_SIGN_UP)
+            {
+                QString strID,strPassword,strName;
+                int nStatus;
+
+                QByteArray arr;
+                dataStream>>arr;
+                strID.append(arr);
+                dataStream>>arr;
+                strPassword.append(arr);
+                dataStream>>arr;
+                strName.append(arr);
+                dataStream>>nStatus;
+
+                QString chkQuery("select email,password from userInfo_tb where email='"+strID+"'");
+                //ID , Name 중복 검사 query
+
+                int chkID = sendQuery(chkQuery);
+
+                chkQuery = "select email,password from userInfo_tb where name='"+strName+"' ";
+
+                int chkName = sendQuery(chkQuery);
+
+                if(chkID == 0 && chkName ==0)
+                {
+                    QString query("INSERT INTO userInfo_tb (email,password,name) VALUES ('"+strID+"','"+strPassword+"','"+strName+"')");
+
+                    int rtQuery = sendQuery(query);
+                    if(rtQuery == 1)
+                    {
+                        strReturn = "SUCCESSED_SIGN_UP";
+                    }
+                    else
+                    {
+                        strReturn = "ERROR_SIGN_UP";
+                    }
+                }
+                else
+                {
+                    if(chkID != 0)
+                    {
+                        strReturn = "DUPLICATE_ID";
+                    }
+                    else
+                    {
+                        strReturn = "DUPLICATE_NAME";
+                    }
+                }
+
+                QByteArray buffer( strReturn.toUtf8());
+
+                newDataSteam<<quint16(buffer.size());
+                newDataSteam << strReturn.toUtf8();
+
+
             }
             nextBlockSize = 0;
             break;
         }
     }
-    newDataSteam.device()->seek(0);
 
-
-    stUserInfo sendUser;
-    foreach(stUserInfo user,list)
+    if(msgType == DEF_TYPE_SIGN_UP)
     {
-        if(user.pTcpSocket == tcpSocket)
+        foreach(stUserInfo user,list)
         {
-            sendUser = user;
+            tcpSocket->write(block);
         }
     }
-
-    foreach(stUserInfo user,list)
+    else
     {
-        if(user.channal.compare(sendUser.channal)==0)
+        stUserInfo sendUser;
+        foreach(stUserInfo user,list)
         {
-            user.pTcpSocket->write(block);
+            if(user.pTcpSocket == tcpSocket)
+            {
+                sendUser = user;
+            }
+        }
+
+        foreach(stUserInfo user,list)
+        {
+            if(user.channal.compare(sendUser.channal)==0)
+            {
+                user.pTcpSocket->write(block);
+            }
         }
     }
-
-
-
-
 
     return strReturn;
 }

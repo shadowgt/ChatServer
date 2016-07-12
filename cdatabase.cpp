@@ -16,6 +16,7 @@ int CDatabase::sendQuery(QString i_query)
 
     m_db = QSqlDatabase::addDatabase("QSQLITE");
     m_db.setDatabaseName("Bong.db");
+
     int count = 0;
 
     if(m_db.open()) //데이터베이스 오픈
@@ -47,13 +48,15 @@ int CDatabase::sendQuery(QString i_query)
 
 
         QSqlQuery query;
-        query.prepare("SELECT * FROM userInfo_tb where email='shadowgt@naver.com' and name='shadowgt' and password='rlaqhdtkd1'");
-        qDebug() << query.executedQuery();
+        //query.prepare("SELECT * FROM userInfo_tb where email='shadowgt@naver.com' and name='shadowgt' and password='rlaqhdtkd1'");
+        qDebug() << i_query;
         if(query.exec(i_query))
         {
             qDebug() <<"active" << query.isActive();
             qDebug() <<"row size : " << query.size();
             qDebug() << "query ok";
+
+
             while(query.next())
             {
                 count++;
@@ -70,6 +73,16 @@ int CDatabase::sendQuery(QString i_query)
             else if (count > 1)
             {
                 qDebug() << " it is Duplicate";
+            }
+
+            qDebug() << i_query.left(6);
+
+            if(count == 0 && i_query.left(6).compare("INSERT")==0 )
+            {
+                qDebug() << "insert query";
+                count = 1;
+
+                qDebug() << query.lastError().type();
             }
         }
         else
